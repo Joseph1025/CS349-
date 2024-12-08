@@ -1,3 +1,5 @@
+from random import random
+
 import numpy as np
 import src.random
 
@@ -86,48 +88,56 @@ class QLearning:
             the groups. In this case, we can't divide by s to find the average reward per step 
             because we have less than s steps remaining for the last group.
         """
-        # set up rewards list, Q(s, a) table
         n_actions, n_states = env.action_space.n, env.observation_space.n
         state_action_values = np.zeros((n_states, n_actions))
-        avg_rewards = np.zeros([num_bins])
+        avg_rewards = np.zeros(num_bins)
         all_rewards = []
+        epsilon = self.epsilon  # Exploration probability
+        alpha = self.alpha # Learning rate
+        gamma = self.gamma  # Discount factor
 
         current_state, _ = env.reset()
-        step_rewards = []
+
+        # Number of steps per bin
+        bin_size = int(np.ceil(steps / num_bins))
+        bin_reward = 0
+        bin_step = 0
 
         for step in range(steps):
-            # Epsilon-greedy policy for action selection
-            if src.random.rand() < self.epsilon:
+            # Choose action: epsilon-greedy
+            if src.random.rand() < epsilon:
                 action = src.random.randint(0, n_actions)  # Explore
             else:
                 max_value = np.max(state_action_values[current_state])
-                best_actions = [a for a in range(n_actions) if state_action_values[current_state][a] == max_value]
+                best_actions = [
+                    a for a in range(n_actions)
+                    if state_action_values[current_state][a] == max_value
+                ]
                 action = src.random.choice(best_actions)  # Exploit with random tie-breaking
 
-            # Take action and observe outcome
+            # Take action and observe the reward and next state
             next_state, reward, terminated, truncated, _ = env.step(action)
-            all_rewards.append(reward)
-            step_rewards.append(reward)
+            done = terminated or truncated
 
-            # Q-Learning update rule
-            max_future_q = np.max(state_action_values[next_state])
-            state_action_values[current_state][action] += self.alpha * (
-                    reward + self.gamma * max_future_q - state_action_values[current_state][action]
-            )
+            # Update Q-value
+            max_next_q = np.max(state_action_values[next_state]) if not done else 0
+            td_target = reward + gamma * max_next_q
+            td_error = td_target - state_action_values[current_state][action]
+            state_action_values[current_state][action] += alpha * td_error
 
-            # Move to the next state
-            if terminated or truncated:
-                current_state, _ = env.reset()
-            else:
-                current_state = next_state
+            # Accumulate rewards for binning
+            bin_reward += reward
+            bin_step += 1
 
-            # Calculate average rewards for bins
-            if (step + 1) % (steps // num_bins) == 0 or step == steps - 1:
-                avg_rewards[(step + 1) // (steps // num_bins) - 1] = np.mean(step_rewards)
-                step_rewards = []
+            if bin_step == bin_size or step == steps - 1:
+                avg_rewards[step // bin_size] = bin_reward / bin_step
+                bin_reward, bin_step = 0, 0
+
+            # Transition to the next state
+            current_state = next_state if not done else env.reset()[0]
 
         return state_action_values, avg_rewards
-        
+
     def predict(self, env, state_action_values):
         """
         Runs prediction on an OpenAI environment using the policy defined by
@@ -174,24 +184,30 @@ class QLearning:
         n_actions, n_states = env.action_space.n, env.observation_space.n
         states, actions, rewards = [], [], []
 
-        # reset environment before your first action
+        # Reset environment
         current_state, _ = env.reset()
-        terminated, truncated = False, False
-        while not (terminated or truncated):
-            # Exploit: Choose the best action (random tie-breaking)
+
+        done = False
+
+        while not done:
+            # Exploit: choose the best action with random tie-breaking
             max_value = np.max(state_action_values[current_state])
-            best_actions = [a for a in range(n_actions) if state_action_values[current_state][a] == max_value]
+            best_actions = [
+                a for a in range(env.action_space.n)
+                if state_action_values[current_state][a] == max_value
+            ]
             action = src.random.choice(best_actions)
 
-            # Take action
+            # Take action and observe result
             next_state, reward, terminated, truncated, _ = env.step(action)
+            done = terminated or truncated
 
-            # Record data
-            states.append(current_state)
+            # Log results
+            states.append(next_state)
             actions.append(action)
             rewards.append(reward)
 
-            # Move to the next state
+            # Transition to the next state
             current_state = next_state
 
         return np.array(states), np.array(actions), np.array(rewards)
