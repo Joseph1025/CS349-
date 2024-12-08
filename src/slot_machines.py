@@ -2,6 +2,8 @@ import numpy as np
 import gymnasium
 from gymnasium import spaces
 from gymnasium.utils import seeding
+from gymnasium.utils.seeding import np_random
+
 import src.random
 
 
@@ -72,6 +74,9 @@ class SlotMachines(gymnasium.Env):
         """
         Resets the environment. For SlotMachines, this always returns 0.
         """
+        if seed is not None:
+            self.seed(seed)
+
         return 0, {'prob': 1}
 
     def render(self, mode='human', close=False):

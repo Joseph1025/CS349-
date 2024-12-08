@@ -1,4 +1,5 @@
 import gymnasium
+import numpy as np
 from gymnasium import spaces
 
 
@@ -39,10 +40,12 @@ class SimpleEnv(gymnasium.Env):
         done = self.reward >= self.max_reward
         return 0, self.reward, done, done, {}
 
-    def reset(self):
+    def reset(self, seed=None, options=None):
         """
         Resets the environment.
         """
+        if seed is not None:
+            np.random.seed(seed)
         self.reward = 0
         return 0, {'prob': 1}
 

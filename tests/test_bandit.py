@@ -17,11 +17,13 @@ def test_bandit_simple():
 
     _, rewards = agent.fit(env, steps=10, num_bins=10)
     assert len(rewards) == 10, "Should have one reward per step"
+    print(f"rewards returned by agent: {rewards}")
     assert np.all(rewards == np.arange(1, 11)), "Each bin contains its own reward"
 
     _, rewards = agent.fit(env, steps=20, num_bins=3)
     msg = "Bin computes average rewards"
     assert rewards.shape == (3, ), "num_bins = 3"
+    print(f"rewards returned by agent: {rewards}")
     assert np.all(np.isclose(rewards[:2], np.array([4, 11]))), msg
     assert np.isclose(rewards[2], 15) or np.isclose(rewards[2], 17.5), msg
 

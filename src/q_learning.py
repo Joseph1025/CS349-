@@ -93,8 +93,40 @@ class QLearning:
         all_rewards = []
 
         current_state, _ = env.reset()
+        step_rewards = []
 
-        raise NotImplementedError
+        for step in range(steps):
+            # Epsilon-greedy policy for action selection
+            if src.random.rand() < self.epsilon:
+                action = src.random.randint(0, n_actions)  # Explore
+            else:
+                max_value = np.max(state_action_values[current_state])
+                best_actions = [a for a in range(n_actions) if state_action_values[current_state][a] == max_value]
+                action = src.random.choice(best_actions)  # Exploit with random tie-breaking
+
+            # Take action and observe outcome
+            next_state, reward, terminated, truncated, _ = env.step(action)
+            all_rewards.append(reward)
+            step_rewards.append(reward)
+
+            # Q-Learning update rule
+            max_future_q = np.max(state_action_values[next_state])
+            state_action_values[current_state][action] += self.alpha * (
+                    reward + self.gamma * max_future_q - state_action_values[current_state][action]
+            )
+
+            # Move to the next state
+            if terminated or truncated:
+                current_state, _ = env.reset()
+            else:
+                current_state = next_state
+
+            # Calculate average rewards for bins
+            if (step + 1) % (steps // num_bins) == 0 or step == steps - 1:
+                avg_rewards[(step + 1) // (steps // num_bins) - 1] = np.mean(step_rewards)
+                step_rewards = []
+
+        return state_action_values, avg_rewards
         
     def predict(self, env, state_action_values):
         """
@@ -144,4 +176,22 @@ class QLearning:
 
         # reset environment before your first action
         current_state, _ = env.reset()
-        raise NotImplementedError
+        terminated, truncated = False, False
+        while not (terminated or truncated):
+            # Exploit: Choose the best action (random tie-breaking)
+            max_value = np.max(state_action_values[current_state])
+            best_actions = [a for a in range(n_actions) if state_action_values[current_state][a] == max_value]
+            action = src.random.choice(best_actions)
+
+            # Take action
+            next_state, reward, terminated, truncated, _ = env.step(action)
+
+            # Record data
+            states.append(current_state)
+            actions.append(action)
+            rewards.append(reward)
+
+            # Move to the next state
+            current_state = next_state
+
+        return np.array(states), np.array(actions), np.array(rewards)

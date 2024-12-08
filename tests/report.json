@@ -1,0 +1,11 @@
+{
+    "score": 100,
+    "tests_passed": 5,
+    "notes": {
+        "test_bandit_simple": "PASS:",
+        "test_bandit_slots": "PASS:",
+        "test_bandit_random_argmax": "PASS:",
+        "test_bandit_frozen_lake": "PASS:",
+        "test_bandit_deterministic": "PASS:"
+    }
+}

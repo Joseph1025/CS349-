@@ -76,46 +76,55 @@ class MultiArmedBandit:
             the groups. In this case, we can't divide by s to find the average reward per step 
             because we have less than s steps remaining for the last group.
         """
-        n_actions, n_states = env.action_space.n, env.observation_space.n
-        self.Q = np.zeros(n_actions)  # Action-value estimates
-        self.N = np.zeros(n_actions)  # Number of times each action is taken
-        avg_rewards = np.zeros([num_bins])
+        n_actions = env.action_space.n
+        n_states = env.observation_space.n
+
+        # Initialize Q-values and action counts
+        self.Q = np.zeros(n_actions)
+        self.N = np.zeros(n_actions)
+
+        # Initialize reward tracking
+        avg_rewards = np.zeros(num_bins)
         all_rewards = []
 
-        # reset the environment
-        env.reset()
+        # Reset environment
+        current_state, _ = env.reset()
 
-        step_rewards = []
+        # Number of steps per bin
+        bin_size = int(np.ceil(steps / num_bins))
+
+        # Loop over total steps
         for step in range(steps):
-            # Decide whether to explore or exploit
+            # Epsilon-greedy policy for action selection
             if src.random.rand() < self.epsilon:
-                # Explore: Choose a random action
+                # Explore: Random action
                 action = src.random.randint(0, n_actions)
             else:
-                # Exploit: Choose the best action (random tie-breaking)
+                # Exploit: Choose action with the highest Q-value (random tie-breaking)
                 max_value = np.max(self.Q)
                 best_actions = [a for a in range(n_actions) if self.Q[a] == max_value]
                 action = src.random.choice(best_actions)
 
-            # Take the action and observe the outcome
+            # Perform action in the environment
             _, reward, terminated, truncated, _ = env.step(action)
             all_rewards.append(reward)
-            step_rewards.append(reward)
 
-            # Update Q-values and counts
+            # Update Q-values using incremental formula
             self.N[action] += 1
             self.Q[action] += (1 / self.N[action]) * (reward - self.Q[action])
 
             # If the episode ends, reset the environment
             if terminated or truncated:
-                env.reset()
+                current_state, _ = env.reset()
 
-            # Calculate average rewards for bins
-            if (step + 1) % (steps // num_bins) == 0 or step == steps - 1:
-                avg_rewards[(step + 1) // (steps // num_bins) - 1] = np.mean(step_rewards)
-                step_rewards = []
+            # Compute bin rewards dynamically
+            if (step + 1) % bin_size == 0 or step == steps - 1:
+                bin_index = (step + 1) // bin_size - 1 if (step + 1) % bin_size == 0 else num_bins - 1
+                start = bin_index * bin_size
+                end = min((bin_index + 1) * bin_size, steps)
+                avg_rewards[bin_index] = np.mean(all_rewards[start:end])
 
-        # Copy action values across all states for uniform output
+        # Copy Q-values across all states to create state-action values
         state_action_values = np.tile(self.Q, (n_states, 1))
 
         return state_action_values, avg_rewards
