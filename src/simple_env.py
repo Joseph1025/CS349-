@@ -1,5 +1,8 @@
 import gymnasium
 import numpy as np
+from gymnasium.utils import seeding
+
+from src import random
 from gymnasium import spaces
 
 
@@ -45,7 +48,7 @@ class SimpleEnv(gymnasium.Env):
         Resets the environment.
         """
         if seed is not None:
-            np.random.seed(seed)
+            _, seed = seeding.np_random(seed)
         self.reward = 0
         return 0, {'prob': 1}
 
